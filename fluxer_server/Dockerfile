@@ -55,12 +55,7 @@ COPY packages/worker/package.json ./packages/worker/
 COPY packages/http_client/package.json ./packages/http_client/
 COPY packages/schema/package.json ./packages/schema/
 COPY fluxer_server/package.json ./fluxer_server/
-for pkg in date_utils elasticsearch_search geo_utils geoip i18n kv_client limits \
-  list_utils locale markdown_parser media_proxy_utils meilisearch_search \
-  mime_utils nats number_utils openapi time; do
-  # Add before the fluxer_app COPY line:
-  # COPY packages/${pkg}/package.json ./packages/${pkg}/
-done
+
 COPY fluxer_app/package.json ./fluxer_app/
 
 RUN pnpm install --frozen-lockfile
