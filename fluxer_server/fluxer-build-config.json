@@ -1,0 +1,4 @@
+build:
+  args:
+    FLUXER_BUILD_CONFIG: |
+      { "domain": { "base_domain": "your.domain", "static_cdn_domain": "fluxerstatic.com", "public_scheme": "https", "public_port": 443 } }
