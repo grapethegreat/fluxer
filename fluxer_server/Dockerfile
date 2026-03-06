@@ -55,6 +55,12 @@ COPY packages/worker/package.json ./packages/worker/
 COPY packages/http_client/package.json ./packages/http_client/
 COPY packages/schema/package.json ./packages/schema/
 COPY fluxer_server/package.json ./fluxer_server/
+for pkg in date_utils elasticsearch_search geo_utils geoip i18n kv_client limits \
+  list_utils locale markdown_parser media_proxy_utils meilisearch_search \
+  mime_utils nats number_utils openapi time; do
+  # Add before the fluxer_app COPY line:
+  # COPY packages/${pkg}/package.json ./packages/${pkg}/
+done
 COPY fluxer_app/package.json ./fluxer_app/
 
 RUN pnpm install --frozen-lockfile
@@ -72,6 +78,8 @@ RUN pnpm --filter @fluxer/config generate
 COPY fluxer_server/ ./fluxer_server/
 
 RUN pnpm --filter @fluxer/marketing build:css
+
+RUN pnpm --filter admin build:css
 
 COPY fluxer_media_proxy/data/model.onnx ./fluxer_media_proxy/data/model.onnx
 
@@ -99,6 +107,11 @@ RUN curl -fsSL https://github.com/erlang/rebar3/releases/download/3.24.0/rebar3 
 
 COPY fluxer_gateway/rebar.config fluxer_gateway/rebar.lock* ./
 RUN rebar3 compile --deps_only
+
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y \
+    --default-toolchain stable --profile minimal \
+    && rustup target add wasm32-unknown-unknown \
+    && cargo install wasm-pack
 
 COPY fluxer_gateway/. ./fluxer_gateway
 RUN LOGGER_LEVEL=${LOGGER_LEVEL} envsubst '${LOGGER_LEVEL}' < fluxer_gateway/config/vm.args.template > fluxer_gateway/config/vm.args && \
@@ -138,6 +151,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 	ffmpeg \
 	&& rm -rf /var/lib/apt/lists/*
 
+FROM deps AS app-build
+ARG FLUXER_BUILD_CONFIG="{}"
+RUN echo "$FLUXER_BUILD_CONFIG" > /tmp/fluxer-build-config.json
+ENV FLUXER_CONFIG=../fluxer-build-config.json
 
 RUN corepack enable && corepack prepare pnpm@10.26.0 --activate
 
@@ -196,4 +213,4 @@ ENV RELEASE_CHANNEL=${RELEASE_CHANNEL}
 HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
 	CMD curl -f http://localhost:8080/_health || exit 1
 
-ENTRYPOINT ["pnpm", "start"]
+ENTRYPOINT ["pnpm", "--filter", "fluxer_server", "start"]
