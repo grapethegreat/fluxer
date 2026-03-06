@@ -55,6 +55,22 @@ get_guild_data(#{user_id := UserId}, State) ->
             end
     end.
 
+-spec fetch_voice_states_from_server(guild_state()) -> [map()].
+fetch_voice_states_from_server(State) ->
+    case maps:get(voice_server_pid, State, undefined) of
+        Pid when is_pid(Pid) ->
+            try gen_server:call(Pid, {get_voice_states_list}, 5000) of
+                VoiceStates when is_list(VoiceStates) -> VoiceStates;
+                _ -> []
+            catch
+                exit:{timeout, _} -> [];
+                exit:{noproc, _} -> [];
+                exit:{normal, _} -> []
+            end;
+        _ ->
+            guild_voice:get_voice_states_list(State)
+    end.
+
 -spec get_guild_member(map(), guild_state()) -> guild_reply(map()).
 get_guild_member(#{user_id := UserId}, State) ->
     case find_member_by_user_id(UserId, State) of
@@ -107,7 +123,7 @@ get_guild_state(UserId, State) ->
             undefined -> [];
             M -> [M]
         end,
-    VoiceStates = guild_voice:get_voice_states_list(State),
+    VoiceStates = fetch_voice_states_from_server(State),
     VoiceMembers = voice_members_from_states(VoiceStates, AllMembers),
     Members = merge_members(OwnMemberList, VoiceMembers),
     MemberCount = maps:get(member_count, State, length(AllMembers)),
